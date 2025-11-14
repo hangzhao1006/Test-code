@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Weather API Test</title>
+</head>
+<body>
+    <h1>Testing Open-Meteo Weather API</h1>
+    <button onclick="testWeather()">Test Weather API</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testWeather() {
+            const result = document.getElementById('result');
+            result.textContent = 'Loading...';
+
+            try {
+                // Test Open-Meteo API
+                const url = 'https://api.open-meteo.com/v1/forecast?latitude=42.3601&longitude=-71.0589&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&timezone=auto';
+
+                console.log('Fetching:', url);
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                result.textContent = JSON.stringify(data, null, 2);
+                console.log('Success!', data);
+            } catch (error) {
+                result.textContent = 'Error: ' + error.message;
+                console.error('Failed:', error);
+            }
+        }
+
+        // Auto-test on load
+        window.onload = () => {
+            testWeather();
+        };
+    </script>
+</body>
+</html>

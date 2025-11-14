@@ -1,0 +1,94 @@
+# Docker Compose 配置文件
+# 统一管理前端、后端和 ChromaDB
+
+version: '3.8'
+
+services:
+  # ==================== ChromaDB 向量数据库 ====================
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: skincare-chromadb
+    ports:
+      - "8001:8000"  # 映射到主机的 8001 端口，避免与后端冲突
+    volumes:
+      - chromadb-data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+    networks:
+      - skincare-network
+
+  # ==================== 后端 API 服务 ====================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev  # 开发环境使用 Dockerfile.dev
+    container_name: skincare-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # 挂载代码目录，支持热重载
+      - ./backend:/app/backend
+      # 挂载 Google Cloud 凭证（使用 secrets 目录中的文件）
+      - ./secrets/ewg-data.json:/app/backend/credentials/gcp-key.json:ro
+      # 挂载数据目录（可写，用于保存生成的索引文件）
+      - ./input-datasets:/app/backend/input-datasets
+    environment:
+      # Google Cloud 配置
+      - GCP_PROJECT=${GCP_PROJECT:-301578946659}
+      - GCP_LOCATION=${GCP_LOCATION:-us-central1}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/backend/credentials/gcp-key.json
+
+      # ChromaDB 配置
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+
+      # OpenAI 配置（如果使用）
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+
+      # 其他配置
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=info
+    depends_on:
+      - chromadb
+    networks:
+      - skincare-network
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ==================== 前端应用 ====================
+  frontend:
+    build:
+      context: ./frontend-template
+      dockerfile: Dockerfile.dev  # 开发环境
+    container_name: skincare-frontend
+    ports:
+      - "3001:3001"
+    volumes:
+      # 挂载代码目录，支持热重载
+      - ./frontend-template:/app
+      # 排除 node_modules（使用容器内的）- 暂时注释以使用主机的node_modules
+      # - /app/node_modules
+      - /app/.next
+    environment:
+      # API 配置
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      # 内部容器通信使用
+      - INTERNAL_API_URL=http://backend:8000
+
+      # Next.js 配置
+      - WATCHPACK_POLLING=true  # 支持 Docker 中的热重载
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - backend
+    networks:
+      - skincare-network
+
+# ==================== 网络配置 ====================
+networks:
+  skincare-network:
+    driver: bridge
+    name: skincare-network
+
+# ==================== 数据卷 ====================
+volumes:
+  chromadb-data:
+    name: skincare-chromadb-data

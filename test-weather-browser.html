@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>天气 API 测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #0070f3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0051cc;
+        }
+        pre {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 400px;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌤️ 天气 API 测试工具</h1>
+        <p>测试 Open-Meteo API 是否能在浏览器中正常工作</p>
+        
+        <div>
+            <button onclick="testOpenMeteo()">测试 Open-Meteo API</button>
+            <button onclick="testGeolocation()">测试地理定位</button>
+            <button onclick="clearResult()">清除结果</button>
+        </div>
+        
+        <h3>测试结果：</h3>
+        <pre id="result">点击按钮开始测试...</pre>
+    </div>
+
+    <script>
+        const resultEl = document.getElementById('result');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            resultEl.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+        }
+
+        function clearResult() {
+            resultEl.innerHTML = '准备测试...\n';
+        }
+
+        async function testOpenMeteo() {
+            clearResult();
+            log('开始测试 Open-Meteo API...', 'info');
+            
+            try {
+                // 测试 Boston 的天气
+                const bostonLat = 42.3601;
+                const bostonLon = -71.0589;
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${bostonLat}&longitude=${bostonLon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&timezone=auto`;
+                
+                log(`请求 URL: ${url}`, 'info');
+                log('正在发送请求...', 'info');
+                
+                const response = await fetch(url);
+                log(`响应状态: ${response.status} ${response.statusText}`, response.ok ? 'success' : 'error');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                log('✅ API 调用成功！', 'success');
+                log('\n天气数据:', 'success');
+                log(JSON.stringify(data, null, 2), 'info');
+                
+                // 解析天气数据
+                if (data.current) {
+                    log('\n解析结果:', 'success');
+                    log(`温度: ${Math.round(data.current.temperature_2m)}°C`, 'success');
+                    log(`湿度: ${data.current.relative_humidity_2m}%`, 'success');
+                    log(`体感温度: ${Math.round(data.current.apparent_temperature)}°C`, 'success');
+                    log(`天气代码: ${data.current.weather_code}`, 'success');
+                }
+                
+            } catch (error) {
+                log(`❌ 错误: ${error.message}`, 'error');
+                log(`错误详情: ${error.stack}`, 'error');
+            }
+        }
+
+        async function testGeolocation() {
+            clearResult();
+            log('开始测试地理定位...', 'info');
+            
+            if (!navigator.geolocation) {
+                log('❌ 浏览器不支持地理定位', 'error');
+                return;
+            }
+            
+            log('请求位置权限...', 'info');
+            
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const { latitude, longitude } = position.coords;
+                    log(`✅ 获取位置成功！`, 'success');
+                    log(`纬度: ${latitude}`, 'success');
+                    log(`经度: ${longitude}`, 'success');
+                    
+                    log('\n正在获取该位置的天气数据...', 'info');
+                    
+                    try {
+                        const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&timezone=auto`;
+                        
+                        const response = await fetch(url);
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        
+                        const data = await response.json();
+                        log('✅ 天气数据获取成功！', 'success');
+                        log(JSON.stringify(data, null, 2), 'info');
+                        
+                        if (data.current) {
+                            log('\n您当前位置的天气:', 'success');
+                            log(`温度: ${Math.round(data.current.temperature_2m)}°C`, 'success');
+                            log(`湿度: ${data.current.relative_humidity_2m}%`, 'success');
+                            log(`体感温度: ${Math.round(data.current.apparent_temperature)}°C`, 'success');
+                        }
+                        
+                    } catch (error) {
+                        log(`❌ 获取天气失败: ${error.message}`, 'error');
+                    }
+                },
+                (error) => {
+                    log(`❌ 位置获取失败: ${error.message}`, 'error');
+                    if (error.code === error.PERMISSION_DENIED) {
+                        log('用户拒绝了位置权限请求', 'error');
+                    } else if (error.code === error.POSITION_UNAVAILABLE) {
+                        log('位置信息不可用', 'error');
+                    } else if (error.code === error.TIMEOUT) {
+                        log('请求超时', 'error');
+                    }
+                }
+            );
+        }
+
+        // 页面加载时自动测试
+        window.onload = () => {
+            log('页面加载完成，准备测试', 'info');
+            log('浏览器信息: ' + navigator.userAgent, 'info');
+            log('\n', 'info');
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+# Frontend Production Dockerfile
+# 多阶段构建，优化镜像大小
+
+# Stage 1: 构建阶段
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# 复制依赖文件
+COPY package*.json ./
+
+# 安装依赖
+RUN npm ci --only=production
+
+# 复制源代码
+COPY . .
+
+# 构建生产版本
+RUN npm run build
+
+# Stage 2: 运行阶段
+FROM node:18-alpine AS runner
+
+WORKDIR /app
+
+# 设置环境变量
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+
+# 创建非 root 用户
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# 复制必要文件
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+# 修改所有者
+RUN chown -R nextjs:nodejs /app
+
+# 切换用户
+USER nextjs
+
+# 暴露端口
+EXPOSE 3001
+
+# 启动应用
+CMD ["node", "server.js"]

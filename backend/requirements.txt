@@ -1,0 +1,40 @@
+# core scientific / data
+pandas
+numpy
+scikit-learn
+
+# text splitting / RAG utils
+langchain
+langchain-text-splitters
+langchain-community
+tiktoken
+sentence-transformers
+
+# vector DB client
+chromadb
+
+# model clients
+openai
+google-genai
+
+# support libs we used in earlier scripts
+beautifulsoup4
+lxml
+requests
+tqdm
+python-dotenv
+tenacity
+pydantic
+pydantic-settings
+
+# GCP / GCS utils
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-cloud-storage
+google-cloud-aiplatform
+
+# FastAPI for API wrapper
+fastapi
+uvicorn[standard]
+python-multipart
